@@ -1,0 +1,41 @@
+{
+  "model": {
+    "n_left": 1,
+    "n_right": 1,
+    "system_shape": [1, 1],
+    "lead_basis": "position",
+    "lead_grid": "sine",
+    "lead_hopping": 0.0,
+    "system_hopping": 0.0,
+    "coupling_left": 0.2,
+    "coupling_right": 0.35,
+    "lead_potential_left": 0.0,
+    "lead_potential_right": 0.0,
+    "system_onsite": 0.0,
+    "hubbard_u": 0.0,
+    "density_interaction": 0.0,
+    "interaction_softening": 0.5,
+    "particle_model": "hardcore"
+  },
+  "initial": {
+    "kind": "product",
+    "left_particles": [1, 0],
+    "system_particles": [0, 0],
+    "right_particles": [0, 0]
+  },
+  "evolution": {
+    "final_time": 0.035,
+    "snapshot_interval": 0.02,
+    "time_step": 0.01
+  },
+  "numerics": {
+    "bond_dimension": 8,
+    "svd_tolerance": 1.0e-12,
+    "bp_maxiter": 25,
+    "bp_tolerance": 1.0e-10,
+    "imaginary_time_steps": 100,
+    "imaginary_time_step": 0.02,
+    "ground_state_tolerance": 1.0e-8
+  },
+  "output_directory": "closed_results"
+}
