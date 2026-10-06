@@ -1,7 +1,6 @@
 using NamedGraphs.PartitionedGraphs: PartitionedGraph, quotient_graph, quotientvertices, 
     QuotientEdge, quotientedges, quotientedge, QuotientVertex, unpartitioned_graph, QuotientEdges
-using NamedGraphs: add_edges!, NamedDiGraph
-using NamedGraphs.GraphsExtensions: directed_graph, undirected_graph, forest_cover_edge_sequence, all_edges
+using NamedGraphs: add_edges!, forest_cover_edge_sequence, all_edges
 using SplitApplyCombine: group
 
 #TODO: Make this show() nicely.
@@ -21,6 +20,7 @@ function set_default_kwargs(alg::Algorithm"bp", bmps_cache::BoundaryMPSCache)
     message_update_alg = set_default_kwargs(
         get(alg.kwargs, :message_update_alg, Algorithm(default_message_update_alg(bmps_cache))), bmps_cache
     )
+    #`tolerance` is deliberately pinned to `nothing` here, see `default_bmps_update_kwargs`
     return Algorithm("bp"; maxiter, edge_sequence, message_update_alg, tolerance = nothing)
 end
 
@@ -55,15 +55,11 @@ function set_default_kwargs(alg::Algorithm"zipup", bmps_cache::BoundaryMPSCache)
     return Algorithm("zipup"; cutoff, normalize)
 end
 
+#The outer sweep over partitions is deliberately not convergence-checked: it runs exactly `maxiter`
+#sweeps (one, when the quotient graph is a tree). Convergence is controlled by the inner message
+#update instead, via the `tolerance` and `niters` of the "fitting" algorithm.
 function default_bmps_update_kwargs(tn::AbstractTensorNetwork)
-    verbose = false
-    tolerance = nothing
-    return (; tolerance, verbose)
-end
-
-function default_bmps_update_kwargs(bmps_cache::BoundaryMPSCache)
-    maxiter = default_bp_maxiter(bmps_cache)
-    return (; default_bmps_update_kwargs(network(bmps_cache))..., maxiter)
+    return (;)
 end
 
 function is_correct_format(bmps_cache::BoundaryMPSCache)
@@ -174,7 +170,7 @@ function BoundaryMPSCache(
     return bmps_cache
 end
 
-all_quotientedges(graph) = QuotientEdges(all_edges(quotient_graph(graph)))
+all_quotientedges(graph) = QuotientEdges(collect(all_edges(quotient_graph(graph))))
 
 #Initialise all the interpartition message tensors
 function set_interpartition_messages!(
@@ -219,7 +215,7 @@ end
 
 function partition_graph(bmps_cache::BoundaryMPSCache, partition::QuotientVertex)
     vs = vertices(supergraph(bmps_cache), partition)
-    es = filter(e -> src(e) ∈ vs && dst(e) ∈ vs, edges(supergraph(bmps_cache)))
+    es = filter(e -> src(e) ∈ vs && dst(e) ∈ vs, collect(edges(supergraph(bmps_cache))))
     g = NamedGraph(vs)
     add_edges!(g, es)
     return g
@@ -520,7 +516,7 @@ end
 
 function delete_partition_messages!(bmps_cache::BoundaryMPSCache, partition::QuotientVertex)
     g = partition_graph(bmps_cache, partition)
-    es = edges(g)
+    es = collect(edges(g))
     es = vcat(es, reverse.(es))
     return deletemessages!(bmps_cache, filter(e -> e ∈ keys(messages(bmps_cache)), es))
 end
@@ -586,18 +582,6 @@ function edges_below(bmps_cache::BoundaryMPSCache, e::NamedEdge)
     es = sorted_edges(bmps_cache, quotientedge(supergraph(bmps_cache), e))
     e_pos = findfirst(x -> x == e, es)
     return NamedEdge[es[i] for i in 1:(e_pos - 1)]
-end
-
-function edge_above(bmps_cache::BoundaryMPSCache, e::NamedEdge)
-    es_above = edges_above(bmps_cache, e)
-    isempty(es_above) && return nothing
-    return first(es_above)
-end
-
-function edge_below(bmps_cache::BoundaryMPSCache, e::NamedEdge)
-    es_below = edges_below(bmps_cache, e)
-    isempty(es_below) && return nothing
-    return last(es_below)
 end
 
 #Sort (bottom to top) edges between pair of partitions in the planargraph
